@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import {
   Users,
   Building2,
@@ -12,6 +13,10 @@ import {
   X,
   Home,
   AlertCircle,
+  Shield,
+  LogIn,
+  LogOut,
+  User as UserIcon,
 } from 'lucide-react';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -118,6 +123,26 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [currentUser, setCurrentUser] = useState<{
+    id: string;
+    name: string;
+    email: string;
+    role: 'ADMIN' | 'USER';
+  } | null>(null);
+
+  // Check auth status
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then((res) => (res.ok ? res.json() : { user: null }))
+      .then((data) => setCurrentUser(data.user || null))
+      .catch(() => setCurrentUser(null));
+  }, []);
+
+  const handleLogout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    setCurrentUser(null);
+    window.location.href = '/login';
+  };
 
   const fetchData = useCallback(async (tab: TabKey) => {
     setLoading(true);
@@ -173,19 +198,70 @@ export default function Dashboard() {
     <main className="min-h-screen p-4 md:p-8 lg:p-12">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white p-6 rounded-2xl border border-gray-200 shadow-xs">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-blue-600 rounded-xl shadow-sm text-white">
+            <div className="p-2.5 bg-blue-600 rounded-xl shadow-xs text-white">
               <Home size={24} />
             </div>
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
+              <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900">
                 Tenant Management Dashboard
               </h1>
               <p className="text-sm text-gray-500">
                 Manage tenant records, properties, leases, and maintenance requests on Prisma & Vercel.
               </p>
             </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            {currentUser ? (
+              <>
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs">
+                  <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold uppercase text-[10px]">
+                    {currentUser.name.slice(0, 2)}
+                  </div>
+                  <div>
+                    <span className="font-semibold text-gray-800">{currentUser.name}</span>
+                    <span
+                      className={`ml-1.5 px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                        currentUser.role === 'ADMIN'
+                          ? 'bg-purple-100 text-purple-700'
+                          : 'bg-blue-100 text-blue-700'
+                      }`}
+                    >
+                      {currentUser.role}
+                    </span>
+                  </div>
+                </div>
+
+                {currentUser.role === 'ADMIN' && (
+                  <Link
+                    href="/admin"
+                    className="flex items-center gap-1.5 px-3.5 py-2 bg-indigo-600 text-white text-xs font-semibold rounded-xl hover:bg-indigo-700 transition shadow-xs"
+                  >
+                    <Shield size={14} />
+                    Admin Panel
+                  </Link>
+                )}
+
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center gap-1.5 px-3 py-2 bg-gray-100 text-gray-600 text-xs font-medium rounded-xl hover:bg-red-50 hover:text-red-600 transition"
+                  title="Sign Out"
+                >
+                  <LogOut size={14} />
+                  Sign Out
+                </button>
+              </>
+            ) : (
+              <Link
+                href="/login"
+                className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white text-xs font-semibold rounded-xl hover:bg-blue-700 transition shadow-xs"
+              >
+                <LogIn size={14} />
+                Sign In
+              </Link>
+            )}
           </div>
         </header>
 
