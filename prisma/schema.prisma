@@ -1,0 +1,69 @@
+// Tenant Management System - Prisma Schema
+// Serverless PostgreSQL (Neon / Supabase / Vercel Postgres)
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Tenant {
+  id          String        @id @default(uuid())
+  name        String
+  email       String        @unique
+  phone       String
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  leases      Lease[]
+  maintenance Maintenance[]
+}
+
+model Property {
+  id        String   @id @default(uuid())
+  name      String
+  address   String
+  units     Unit[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Unit {
+  id         String   @id @default(uuid())
+  unitNumber String
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  leases     Lease[]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([propertyId, unitNumber])
+}
+
+model Lease {
+  id         String   @id @default(uuid())
+  startDate  DateTime
+  endDate    DateTime
+  rentAmount Float
+  status     String   @default("ACTIVE") // ACTIVE, EXPIRED, TERMINATED
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  unitId     String
+  unit       Unit     @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Maintenance {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  status      String   @default("PENDING") // PENDING, IN_PROGRESS, RESOLVED
+  priority    String   @default("MEDIUM") // LOW, MEDIUM, HIGH, URGENT
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
