@@ -6,6 +6,12 @@ A production-ready full-stack Tenant and Property Management application built w
 
 ## Features
 
+- **Authentication & RBAC**: Secure email/password login with hashed passwords (`bcryptjs`) and HTTP-only session cookies (`jose` JWT).
+- **Admin Panel (`/admin`)**:
+  - Dedicated administrator portal.
+  - **Account Creation**: Create new accounts for users with roles (`USER` or `ADMIN`).
+  - **Tenant Linking**: Optionally associate user logins with existing Tenant profiles.
+  - Account deletion and user directory table.
 - **Tenant Directory**: Register, view, edit, and delete tenant records with contact details and lease history.
 - **Property & Unit Management**: Organize properties and units with hierarchical structure.
 - **Lease Lifecycle Tracking**: Monitor lease start/end dates, monthly rent, and active/expired/terminated status.
@@ -18,13 +24,25 @@ A production-ready full-stack Tenant and Property Management application built w
 
 | Layer | Technology |
 |---|---|
-| **Framework** | Next.js (App Router, Turbopack) |
+| **Framework** | Next.js 16 (App Router, Turbopack) |
 | **Language** | TypeScript |
 | **Styling** | Tailwind CSS |
 | **Icons** | Lucide React |
+| **Auth & Security** | Jose (JWT), Bcrypt.js, HTTP-Only Cookies |
 | **ORM** | Prisma ORM 6 |
 | **Database** | Serverless PostgreSQL (Neon, Supabase, or Vercel Postgres) |
 | **Hosting** | Vercel (Frontend + Serverless Functions) |
+
+---
+
+## Default Initial Admin Credentials
+
+When the database is freshly initialized, an initial administrator account is automatically seeded on first login:
+
+- **Email**: `admin@rental.com`
+- **Password**: `admin123`
+
+You can immediately use this account to log in at [`/login`](http://localhost:3000/login) and access the [`/admin`](http://localhost:3000/admin) panel to create additional accounts for users and staff.
 
 ---
 
@@ -33,10 +51,21 @@ A production-ready full-stack Tenant and Property Management application built w
 ```text
 tenant-management-app/
 ├── prisma/
-│   └── schema.prisma              # Database schema (Tenant, Property, Unit, Lease, Maintenance)
+│   └── schema.prisma              # Database schema (User, Tenant, Property, Unit, Lease, Maintenance)
 ├── src/
 │   ├── app/
+│   │   ├── admin/
+│   │   │   └── page.tsx           # Admin Panel for User Account Creation & Management
+│   │   ├── login/
+│   │   │   └── page.tsx           # User Authentication Page
 │   │   ├── api/
+│   │   │   ├── auth/
+│   │   │   │   ├── login/         # POST /api/auth/login
+│   │   │   │   ├── logout/        # POST /api/auth/logout
+│   │   │   │   └── me/            # GET /api/auth/me
+│   │   │   ├── admin/
+│   │   │   │   └── users/         # GET, POST /api/admin/users
+│   │   │   │       └── [id]/      # PUT, DELETE /api/admin/users/[id]
 │   │   │   ├── tenants/           # GET, POST /api/tenants
 │   │   │   │   └── [id]/          # GET, PUT, DELETE /api/tenants/[id]
 │   │   │   ├── properties/        # GET, POST /api/properties
@@ -49,6 +78,7 @@ tenant-management-app/
 │   │   ├── page.tsx               # Full Interactive Dashboard UI
 │   │   └── globals.css            # Global Tailwind Styles
 │   └── lib/
+│       ├── auth.ts                # Session verification, bcrypt, RBAC helpers
 │       └── prisma.ts              # Global Prisma client singleton
 ├── vercel.json                    # Vercel deployment configuration
 ├── .env.example                   # Environment variable templates
@@ -77,6 +107,7 @@ Set your `DATABASE_URL` (e.g. from [Neon](https://neon.tech), [Supabase](https:/
 
 ```env
 DATABASE_URL="postgresql://user:password@localhost:5432/tenant_management?schema=public"
+JWT_SECRET="your-secure-jwt-secret-at-least-32-chars-long"
 ```
 
 ### 3. Push Database Schema
@@ -93,7 +124,9 @@ npx prisma db push
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) to view the dashboard.
+1. Open [http://localhost:3000/login](http://localhost:3000/login) to sign in as Admin (`admin@rental.com` / `admin123`).
+2. Visit [http://localhost:3000/admin](http://localhost:3000/admin) to create new user accounts.
+3. Access [http://localhost:3000](http://localhost:3000) for the main Rental Management dashboard.
 
 ---
 
@@ -111,16 +144,8 @@ Open [http://localhost:3000](http://localhost:3000) to view the dashboard.
 3. Select your GitHub repository and click **Import**.
 4. Under **Environment Variables**, add:
    - **`DATABASE_URL`**: Your connection string from Neon, Supabase, or Vercel Postgres.
+   - **`JWT_SECRET`**: A random 32+ character string.
 5. Under **Build Settings**, verify:
    - **Framework Preset**: `Next.js`
    - **Build Command**: `prisma generate && next build` (configured automatically via `vercel.json` and `package.json`).
 6. Click **Deploy**.
-
-### Method 2: Deploy via Vercel CLI
-
-```bash
-npm install -g vercel
-vercel login
-vercel
-```
-Set the environment variable when prompted or via the dashboard.
