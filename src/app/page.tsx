@@ -95,7 +95,7 @@ function Badge({ text, colorMap }: { text: string; colorMap: Record<string, stri
   );
 }
 
-function formatDate(d: string) {
+function formatDate(d: string | number) {
   return new Date(d).toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'short',
@@ -128,16 +128,16 @@ export default function Dashboard() {
       const data = await res.json();
       switch (tab) {
         case 'tenants':
-          setTenants(data);
+          setTenants(Array.isArray(data) ? data : []);
           break;
         case 'properties':
-          setProperties(data);
+          setProperties(Array.isArray(data) ? data : []);
           break;
         case 'leases':
-          setLeases(data);
+          setLeases(Array.isArray(data) ? data : []);
           break;
         case 'maintenance':
-          setMaintenance(data);
+          setMaintenance(Array.isArray(data) ? data : []);
           break;
       }
     } catch (err) {
@@ -173,17 +173,17 @@ export default function Dashboard() {
     <main className="min-h-screen p-4 md:p-8 lg:p-12">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <header className="flex items-center justify-between">
+        <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-600 rounded-lg">
-              <Home size={24} className="text-white" />
+            <div className="p-2.5 bg-blue-600 rounded-xl shadow-sm text-white">
+              <Home size={24} />
             </div>
             <div>
               <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
                 Tenant Management Dashboard
               </h1>
               <p className="text-sm text-gray-500">
-                Manage tenant records, properties, leases, and maintenance requests.
+                Manage tenant records, properties, leases, and maintenance requests on Prisma & Vercel.
               </p>
             </div>
           </div>
@@ -282,7 +282,19 @@ export default function Dashboard() {
                 <MaintenanceTable
                   tickets={maintenance}
                   onDelete={(id) => handleDelete('maintenance', id)}
-                  onStatusChange={(id, status) => handleStatusUpdate(id, status, fetchData)}
+                  onStatusChange={async (id, status) => {
+                    try {
+                      const res = await fetch(`/api/maintenance/${id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ status }),
+                      });
+                      if (!res.ok) throw new Error('Failed to update status');
+                      fetchData('maintenance');
+                    } catch {
+                      setError('Failed to update status');
+                    }
+                  }}
                 />
               )}
             </>
@@ -319,7 +331,6 @@ function FormPanel({
       body[key] = value.toString();
     });
 
-    // For properties, parse units
     let payload: Record<string, unknown> = body;
     if (tab === 'properties' && body.units) {
       const unitNumbers = body.units
@@ -457,26 +468,6 @@ function FormPanel({
       </form>
     </section>
   );
-}
-
-// ─── Status Update Helper ────────────────────────────────────────────────────
-
-async function handleStatusUpdate(
-  id: string,
-  status: string,
-  refetch: (tab: TabKey) => Promise<void>
-) {
-  try {
-    const res = await fetch(`/api/maintenance/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status }),
-    });
-    if (!res.ok) throw new Error('Failed to update status');
-    refetch('maintenance');
-  } catch {
-    console.error('Failed to update maintenance status');
-  }
 }
 
 // ─── Tables ──────────────────────────────────────────────────────────────────
@@ -697,7 +688,7 @@ function MaintenanceTable({
                   <select
                     value={m.status}
                     onChange={(e) => onStatusChange(m.id, e.target.value)}
-                    className="text-xs border border-gray-200 rounded-md px-2 py-1 bg-white"
+                    className="text-xs border border-gray-200 rounded-md px-2 py-1 bg-white cursor-pointer hover:border-gray-300"
                   >
                     <option value="PENDING">Pending</option>
                     <option value="IN_PROGRESS">In Progress</option>
